@@ -140,6 +140,51 @@ static uint64 (*syscalls[])(void) = {
 [SYS_trace]   sys_trace,
 };
 
+void print_syscall_args(int num) {
+    switch (num) {
+    case SYS_read:
+    case SYS_write: {
+        int fd, n;
+        argint(0, &fd);   // Lấy file descriptor
+        argint(2, &n);     // Lấy số byte
+        printf("  fd: %d, n: %d\n", fd, n);
+        break;
+    }
+    case SYS_exec: {
+        char buf[512];
+        
+        // Kiểm tra và sao chép chuỗi
+        if (argstr(0, buf, sizeof(buf)) < 0) {
+            printf("  exec filename: (failed to retrieve)\n");
+        } else {
+            // Đảm bảo chuỗi được null-terminated
+            buf[511] = '\0';  // Cắt chuỗi nếu quá dài và đảm bảo kết thúc bằng '\0'
+            printf("  exec filename: %s\n", buf);
+        }
+        break;
+    }
+
+    case SYS_open: {
+        char path[512];
+        int flags;
+        if (argstr(0, path, sizeof(path)) < 0) {
+            printf("  path: (failed to retrieve)\n");
+        } else {
+            argint(1, &flags);             
+            printf("  path: %s, flags: %d\n", path, flags);
+        }
+        break;
+    }
+    case SYS_fork:
+        break;
+    default:
+        printf("  (no detailed arguments traced)\n");
+        break;
+    }
+}
+
+
+
 void
 syscall(void)
 {
@@ -152,6 +197,7 @@ syscall(void)
 
         if (p->mask & (1 << num)) {
             printf("%d: syscall %s -> %d\n", p->pid, syscallnames[num], (int)p->trapframe->a0);
+            print_syscall_args(num);
         }
     } else {
         printf("%d %s: unknown sys call %d\n", p->pid, p->name, num);
